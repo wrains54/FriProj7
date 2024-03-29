@@ -3,58 +3,55 @@ from tkinter import messagebox
 import re
 import sqlite3
 
+# Function to validate email format
+def validate_email(email):
+    pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    return pattern.match(email)
 
-def sign_in():
-    email = email_login_entry.get()
-    password = password_login_entry.get()
+# Function to create a new user account
+def create_account(event=None):
+    name = name_entry.get()
+    email = email_entry.get()
+    password = password_entry.get()
+    confirm_password = confirm_password_entry.get()
 
+    # Clear previous error messages
+    clear_messages()
+
+    # Check if any field is empty
+    if not name or not email or not password or not confirm_password:
+        error_label.config(text="Enter All Required Inforamtion", fg="red")
+        return
+
+    # Validate email format
+    if not validate_email(email):
+        error_label.config(text="Please enter a valid email address", fg="red")
+        return
+
+    # Validate password match
+    if password != confirm_password:
+        error_label.config(text="Passwords do not match", fg="red")
+        return
+
+    # Connect to the database
     conn = sqlite3.connect('user_database.db')
     c = conn.cursor()
 
-    c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+    # Create the "users" table if it doesn't exist
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+                 id INTEGER PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 email TEXT UNIQUE NOT NULL,
+                 password TEXT NOT NULL)''')
+
+    # Check if the email already exists in the database
+    c.execute("SELECT * FROM users WHERE email=?", (email,))
     if c.fetchone() is not None:
-        success_label.config(text="Login successful", fg="green")
-        clear_fields()
-    else:
-        error_label.config(text="Email or password incorrect.", fg="red")
-        password_login_entry.delete(0, tk.END)
+        error_label.config(text="Email already exists", fg="red")
+        conn.close()
+        return
 
-    conn.close()
-
-def clear_fields():
-    email_login_entry.delete(0, tk.END)
-    password_login_entry.delete(0, tk.END)
-
-def signin_window():
-    root = tk.Tk()
-    root.title("Sign In")
-
-    tk.Label(root, text="Email:").pack()
-    global email_login_entry
-    email_login_entry = tk.Entry(root)
-    email_login_entry.pack()
-
-    tk.Label(root, text="Password:").pack()
-    global password_login_entry
-    password_login_entry = tk.Entry(root, show="*")
-    password_login_entry.pack()
-
-    global error_label
-    error_label = tk.Label(root, text="", fg="red")
-    error_label.pack()
-
-    global success_label
-    success_label = tk.Label(root, text="", fg="green")
-    success_label.pack()
-
-    signin_button = tk.Button(root, text="Sign In", command=sign_in)
-    signin_button.pack()
-
-    root.mainloop()
-
-if __name__ == "__main__":
-    signin_window()
-
+    # Insert new user into the database
     c.execute("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", (name, email, password))
     conn.commit()
     conn.close()
@@ -110,7 +107,7 @@ def signup_window():
     success_label = tk.Label(root, text="", fg="green")
     success_label.pack()
 
-    signup_button = tk.Button(root, text="Sign Up", command=create_account)
+    signup_button = tk.Button(root, text="Create Account", command=create_account)
     signup_button.pack()
 
     # Bind Enter key press event to sign-up button
